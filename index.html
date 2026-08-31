@@ -107,13 +107,13 @@ html, body {
   background-size: 60px 60px;
   pointer-events: none; z-index: 0;
 }
-.hi { position: relative; z-index: 1; }
+.hi { position: relative; z-index: 1; display: block; }
 
 .hero-meta {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 0.6rem;
+  align-items: flex-start;
+  margin-bottom: 1.8rem;
   font-family: var(--fd);
   font-size: clamp(.55rem, 1.1vw, .82rem);
   font-weight: 600;
@@ -158,22 +158,45 @@ html, body {
 
 /* ── MOBILE ── */
 @media (max-width: 767px) {
-  .hero-title {
-    /* AVATAR = 6 chars + kerning, нужно влезть в ~360px */
-    font-size: clamp(2rem, 14.5vw, 4.5rem);
-    letter-spacing: -0.02em;
-    margin-bottom: 2rem;
-    transform-origin: bottom left;
-    /* разрешить выход за пределы при scaleY */
-    overflow: visible;
-  }
   #hero {
     padding: 1rem 1rem;
     overflow: visible;
+    justify-content: flex-end;
   }
+
+  /* .hi — flex-контейнер только на мобилке,
+     переставляем порядок: заголовок → мета → кнопка */
+  .hi {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .hero-title {
+    font-size: clamp(2.2rem, 15.5vw, 4.8rem);
+    letter-spacing: -0.02em;
+    margin-bottom: 0.8rem;
+    transform-origin: bottom left;
+    overflow: visible;
+  }
+
+  /* мета — после заголовка в DOM, стилизуем компактно */
   .hero-meta {
-    font-size: clamp(.42rem, 2.6vw, .65rem);
-    letter-spacing: .1em;
+    font-size: clamp(.4rem, 2.5vw, .6rem);
+    letter-spacing: .08em;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+    margin-bottom: 0.8rem;
+    opacity: .5;
+    justify-content: flex-start;
+  }
+  .hero-meta span {
+    display: block;
+  }
+
+  .hero-cta {
+    margin-bottom: 1.5rem;
   }
 }
 </style>
@@ -192,11 +215,11 @@ html, body {
 <main>
   <section id="hero">
     <div class="hi">
+      <h1 class="hero-title">AVATAR<br>MAP</h1>
       <div class="hero-meta">
         <span>Карта парка Аватар</span>
         <span>Живые сканы &bull; Чжанцзяцзе</span>
       </div>
-      <h1 class="hero-title">AVATAR<br>MAP</h1>
       <a class="hero-cta" href="https://t.me/Avatarparkmap_bot" target="_blank" rel="noopener">
         [ купить &middot; 150&nbsp;&#8381; ]
       </a>
@@ -360,11 +383,16 @@ var FS = [
   });
 
   var sphere = new THREE.Mesh(geo, mat);
-  /* на десктопе — вправо; на мобиле — чуть вправо, выше */
+  /* на десктопе — вправо и ВЫШЕ (чтобы не перекрывать «MAP»);
+     на мобиле — по центру, выше середины экрана, меньше */
   if (isMobile) {
-    sphere.position.set(0.8, 1.0, 0);
+    /* мобилка: уменьшаем масштаб до ~0.44 (~35% высоты),
+       X=0 — по центру, Y=1.4 — верхняя треть экрана */
+    sphere.scale.setScalar(0.44);
+    sphere.position.set(0.0, 1.4, 0);
   } else {
-    sphere.position.set(2.8, 0.4, -0.5);
+    /* десктоп: поднимаем Y с 0.4 → 1.0 и сдвигаем правее X с 2.8 → 3.1 */
+    sphere.position.set(3.1, 1.0, -0.5);
   }
   scene.add(sphere);
 
@@ -398,8 +426,14 @@ var FS = [
     sphere.rotation.x += 0.001;
     mouse.x += (mouse.tx - mouse.x)*0.04;
     mouse.y += (mouse.ty - mouse.y)*0.04;
-    sphere.position.x = mouse.x * 0.3;
-    sphere.position.y = mouse.y * 0.2;
+    if (isMobile) {
+      /* на мобилке parallax не нужен (нет мыши), базовая позиция */
+      sphere.position.x = 0.0;
+      sphere.position.y = 1.4;
+    } else {
+      sphere.position.x = 3.1 + mouse.x * 0.3;
+      sphere.position.y = 1.0 + mouse.y * 0.2;
+    }
     renderer.render(scene, camera);
     if (dot)  { dot.style.left  = cx+'px'; dot.style.top  = cy+'px'; }
     if (ring) {
