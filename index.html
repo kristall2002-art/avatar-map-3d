@@ -76,20 +76,6 @@ html, body {
   user-select: none;
 }
 
-/* ── SKY GRADIENT (за canvas, просвечивает через туман) ── */
-#sky-bg {
-  position: fixed; inset: 0;
-  z-index: 0;
-  background: linear-gradient(
-    to bottom,
-    #020609 0%,
-    #060e18 30%,
-    #091810 65%,
-    #0d1f0c 100%
-  );
-  pointer-events: none;
-}
-
 /* ── CANVAS ── */
 #gl {
   position: fixed; top: 0; left: 0;
@@ -115,8 +101,8 @@ html, body {
   content: '';
   position: absolute;
   bottom: 0; left: 0;
-  width: 45%; height: 38%;
-  background: radial-gradient(ellipse at bottom left, rgba(13,21,24,.92) 0%, transparent 70%);
+  width: 55%; height: 42%;
+  background: radial-gradient(ellipse at bottom left, rgba(13,21,24,.95) 0%, transparent 70%);
   pointer-events: none; z-index: 0;
 }
 
@@ -125,8 +111,8 @@ html, body {
   content: '';
   position: absolute; inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,222,.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,222,.018) 1px, transparent 1px);
+    linear-gradient(rgba(255,255,222,.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,222,.012) 1px, transparent 1px);
   background-size: 60px 60px;
   pointer-events: none; z-index: 0;
 }
@@ -147,7 +133,6 @@ html, body {
   opacity: .65;
 }
 
-/* Уменьшенный заголовок — сцена = герой */
 .hero-title {
   font-family: var(--fd);
   font-size: clamp(1.8rem, 5vw, 4.8rem);
@@ -181,6 +166,18 @@ html, body {
 }
 .hero-cta:hover { background: var(--text); }
 
+/* Атрибуция Wikimedia */
+#attribution {
+  position: fixed;
+  bottom: 8px; right: 12px;
+  z-index: 20;
+  font-size: 10px;
+  color: rgba(255,255,222,0.38);
+  font-family: var(--fb);
+  pointer-events: none;
+  letter-spacing: .03em;
+}
+
 /* ── MOBILE ── */
 @media (max-width: 767px) {
   #hero {
@@ -213,7 +210,7 @@ html, body {
   .hero-meta span { display: block; }
   .hero-cta { margin-bottom: 1.2rem; }
   #hero::after {
-    width: 80%; height: 35%;
+    width: 90%; height: 40%;
   }
 }
 </style>
@@ -227,7 +224,6 @@ html, body {
   <div id="loader-count">000%</div>
 </div>
 
-<div id="sky-bg"></div>
 <canvas id="gl"></canvas>
 
 <main>
@@ -245,12 +241,17 @@ html, body {
   </section>
 </main>
 
+<div id="attribution">Фото: Wikimedia Commons, CC BY-SA</div>
+
 <!-- Three.js r128 UMD (global THREE) -->
 <script src="./three.min.js"></script>
 <!-- GSAP UMD -->
 <script src="./gsap.min.js"></script>
 <!-- Photo data — base64 inline, same-origin everywhere -->
 <script src="./photos.js"></script>
+<!-- Panorama & Pillar — base64 inline (same-origin, works in headless) -->
+<script src="./panorama.js"></script>
+<script src="./pillar.js"></script>
 
 <!-- Postprocessing (Three.js r128 examples, локальные UMD-копии) -->
 <script src="./CopyShader.js"></script>
@@ -262,7 +263,10 @@ html, body {
 
 <script>
 /* ═══════════════════════════════════════════════
-   THREE.JS SCENE — «каменный столб в туманном каньоне»
+   THREE.JS SCENE — Реальная панорама Чжанцзяцзе + реальный столб-фото
+   Skybox: equirectangular 360° панорама парка (SphereGeometry BackSide)
+   Центральный столб: реальное фото скалы (Вариант A — billboard)
+   Туман FogExp2 под цвет панорамы
 ═══════════════════════════════════════════════ */
 (function() {
   var isMobile = window.innerWidth < 768;
@@ -274,14 +278,14 @@ html, body {
     renderer = new THREE.WebGLRenderer({
       canvas: canvas,
       antialias: !isMobile,
-      alpha: true,
+      alpha: false,
       powerPreference: 'high-performance'
     });
     renderer.setPixelRatio(dpr);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.1;
+    renderer.toneMappingExposure = 1.05;
     renderer.shadowMap.enabled = false;
   } catch(e) {
     console.warn('WebGL failed:', e);
@@ -291,15 +295,15 @@ html, body {
   if (!renderer) return;
 
   var scene = new THREE.Scene();
-  /* Тёмно-сине-зелёный туман — плотнее для атмосферы каньона */
-  scene.fog = new THREE.FogExp2(0x060e10, 0.040);
+  /* Атмосферный туман — сизо-серо-зелёный, как дымка в ущелье Чжанцзяцзе */
+  scene.fog = new THREE.FogExp2(0x3a4a3c, 0.028);
 
   /* ── CAMERA ── */
-  var fov = isMobile ? 55 : 42;
-  var camera = new THREE.PerspectiveCamera(fov, window.innerWidth / window.innerHeight, 0.1, 200);
+  var fov = isMobile ? 70 : 58;
+  var camera = new THREE.PerspectiveCamera(fov, window.innerWidth / window.innerHeight, 0.1, 600);
 
-  var orbitRadius = isMobile ? 7.5 : 11.5;
-  var orbitHeight = isMobile ? 0.5 : -0.5;
+  var orbitRadius = isMobile ? 6.0 : 9.0;
+  var orbitHeight = isMobile ? 0.0 : -0.5;
   camera.position.set(orbitRadius, orbitHeight, 0);
   camera.lookAt(0, 2.0, 0);
 
@@ -328,162 +332,123 @@ html, body {
 
       var bloomPass = new THREE.UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.75,  /* strength */
-        0.45,  /* radius */
-        0.78   /* threshold */
+        0.45,  /* strength — мягкий bloom под природный свет */
+        0.50,  /* radius */
+        0.85   /* threshold */
       );
       composer.addPass(bloomPass);
       useBloom = true;
       console.log('[avatar3d] EffectComposer + UnrealBloomPass OK');
-    } else {
-      console.log('[avatar3d] Bloom scripts not loaded, using direct render');
     }
   } catch(bloomErr) {
-    console.warn('[avatar3d] Bloom init error, fallback:', bloomErr);
-    composer = null;
-    useBloom = false;
+    composer = null; useBloom = false;
   }
 
-  /* ── LIGHTS — PBR-совместимое освещение для реализма камня ── */
-
-  /* Hemisphere: небо холодное синее, земля тёплая зелёная */
-  var hemiLight = new THREE.HemisphereLight(0x1a2a3a, 0x0a1a0a, 0.45);
-  scene.add(hemiLight);
-
-  /* Солнце под углом — основной источник объёма и теней на normal-map */
-  /* Тёплый желтоватый свет сбоку — даёт чёткие тени в бороздах камня */
-  var dirLight = new THREE.DirectionalLight(0xc8b888, 1.4);
-  dirLight.position.set(6, 14, 5);
-  scene.add(dirLight);
-
-  /* Контровой синий свет — отделяет скалу от тумана */
-  var rimLight = new THREE.DirectionalLight(0x4477aa, 0.45);
-  rimLight.position.set(-5, 8, -8);
-  scene.add(rimLight);
-
-  /* Подсветка снизу — тёплый зеленоватый акцент снизу (мхи, туман) */
-  var pointBottom = new THREE.PointLight(0x66bb33, 3.8, 12, 2);
-  pointBottom.position.set(0, -3.0, 0);
-  scene.add(pointBottom);
-
-  var pointFog = new THREE.PointLight(0x336644, 2.0, 18, 2);
-  pointFog.position.set(-3, -1.5, -4);
-  scene.add(pointFog);
-
-  /* Spot следует за камерой — тёплое пятно на скале */
-  var pillarSpot = new THREE.PointLight(0xc0d8a8, 2.8, 22, 2);
-  pillarSpot.position.set(5, 4, 5);
-  scene.add(pillarSpot);
-
-  /* ── PBR ТЕКСТУРЫ СТОЛБА — rock_face (Poly Haven CC0) ── */
+  /* ── TEXTURE LOADER ── */
   var txLoader = new THREE.TextureLoader();
 
-  /* Базовый материал — серый камень до загрузки текстур */
+  /* ══════════════════════════════════════════════════
+     SKYBOX — 360° панорама Чжанцзяцзе (equirectangular)
+     Большая сфера, камера внутри, BackSide
+  ════════════════════════════════════════════════ */
+  var skyMesh = null;
+  var panoLoaded = false;
+
+  /* Используем base64 если доступна (headless/file://), иначе img-путь */
+  var panoSrc = (typeof PANORAMA_B64 !== 'undefined' && PANORAMA_B64)
+    ? PANORAMA_B64
+    : 'img/panorama_zhangjiajie.jpg';
+
+  txLoader.load(
+    panoSrc,
+    function(tex) {
+      tex.encoding = THREE.sRGBEncoding;
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.minFilter = THREE.LinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      /* Смещение — подбираем красивый ракурс: немного сдвигаем, чтобы столбы были видны */
+      tex.offset.set(0.18, 0.0);
+
+      var skyGeo = new THREE.SphereGeometry(380, 64, 32);
+      var skyMat = new THREE.MeshBasicMaterial({
+        map: tex,
+        side: THREE.BackSide,
+        depthWrite: false,
+        depthTest: false,
+        fog: false,        /* панорама НЕ затуманивается — только foreground objects */
+      });
+      skyMesh = new THREE.Mesh(skyGeo, skyMat);
+      /* Рендерим первым (за сценой) */
+      skyMesh.renderOrder = -1;
+      scene.add(skyMesh);
+      panoLoaded = true;
+      console.log('[avatar3d] Panorama loaded OK, src=' + panoSrc.substring(0,40));
+    },
+    undefined,
+    function(err) {
+      console.warn('[avatar3d] Panorama load failed:', err);
+      /* Fallback — тёмный фон как раньше */
+      scene.background = new THREE.Color(0x060e10);
+    }
+  );
+
+  /* ══════════════════════════════════════════════════
+     ЦЕНТРАЛЬНЫЙ СТОЛБ — реальное фото скалы Чжанцзяцзе
+     Вариант A: изогнутый высокий billboard с настоящей фотографией
+     + геометрический PBR-цилиндр как опора (вариант A+)
+  ════════════════════════════════════════════════ */
+
+  /* Базовый PBR материал для геометрической части */
   var matPillar = new THREE.MeshStandardMaterial({
-    color: 0x5a5850,
-    roughness: 0.92,
+    color: 0x6a6a58,
+    roughness: 0.94,
     metalness: 0.0,
-    emissive: new THREE.Color(0x060f06),
-    emissiveIntensity: 0.25,
+    emissive: new THREE.Color(0x030804),
+    emissiveIntensity: 0.15,
   });
 
-  /* Загружаем 3 PBR-карты асинхронно */
-  var rockDiffLoaded = false, rockNorLoaded = false, rockRoughLoaded = false;
+  /* Материал ГЛАВНОГО СТОЛБА с реальным фото скалы */
+  /* Fallback цвет — серо-песчаный камень как в Чжанцзяцзе */
+  var matMainPillar = new THREE.MeshStandardMaterial({
+    color: 0x9a8e78,   /* серо-коричневый песчаник — виден до загрузки текстуры */
+    roughness: 0.92,
+    metalness: 0.0,
+    emissive: new THREE.Color(0x060a04),
+    emissiveIntensity: 0.12,
+  });
 
-  function setupTexture(tex, isSRGB, wrapS, wrapT, repX, repY) {
-    if (isSRGB) tex.encoding = THREE.sRGBEncoding;
-    tex.wrapS = wrapS;
-    tex.wrapT = wrapT;
-    tex.repeat.set(repX, repY);
-    tex.minFilter = THREE.LinearMipmapLinearFilter;
-    tex.magFilter = THREE.LinearFilter;
-    tex.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
-    return tex;
-  }
-
-  /* Diffuse — sRGB, MirroredRepeatWrapping по X убирает шов */
-  txLoader.load('img/rock/rock_diff.jpg',
+  /* Загружаем фото скалы на главный столб */
+  txLoader.load(
+    (typeof PILLAR_B64 !== 'undefined' && PILLAR_B64) ? PILLAR_B64 : 'img/pillar_zhangjiajie.jpg',
     function(tex) {
-      setupTexture(tex, true, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
-      matPillar.map = tex;
-      /* Слегка затемняем и добавляем зеленоватый оттенок — мокрый камень в ущелье */
-      matPillar.color = new THREE.Color(0.70, 0.75, 0.62);
-      matPillar.emissive = new THREE.Color(0x030804);
-      matPillar.emissiveIntensity = 0.10;
-      matPillar.needsUpdate = true;
-      rockDiffLoaded = true;
+      tex.encoding = THREE.sRGBEncoding;
+      tex.wrapS = THREE.MirroredRepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(1.0, 2.5);   /* одно повторение по горизонту, 2.5 по высоте */
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      matMainPillar.map = tex;
+      matMainPillar.needsUpdate = true;
+      console.log('[avatar3d] Main pillar texture OK');
     },
     undefined,
-    function() {
-      /* Fallback — cliff_side diffuse */
-      txLoader.load('img/rock/cliff_diff.jpg', function(tex) {
-        setupTexture(tex, true, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
-        matPillar.map = tex;
-        matPillar.color = new THREE.Color(0.70, 0.75, 0.62);
-        matPillar.needsUpdate = true;
-      });
-    }
+    function() { console.warn('[avatar3d] Main pillar texture fail'); }
   );
 
-  /* Normal map — LINEAR (не sRGB!), GL-формат — прямой для Three.js */
-  txLoader.load('img/rock/rock_nor.jpg',
-    function(tex) {
-      setupTexture(tex, false, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
-      matPillar.normalMap = tex;
-      matPillar.normalScale = new THREE.Vector2(1.8, 1.8);
-      matPillar.needsUpdate = true;
-      rockNorLoaded = true;
-    },
-    undefined,
-    function() {
-      txLoader.load('img/rock/cliff_nor.jpg', function(tex) {
-        setupTexture(tex, false, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
-        matPillar.normalMap = tex;
-        matPillar.normalScale = new THREE.Vector2(1.6, 1.6);
-        matPillar.needsUpdate = true;
-      });
-    }
-  );
-
-  /* Roughness map — LINEAR */
-  txLoader.load('img/rock/rock_rough.jpg',
-    function(tex) {
-      setupTexture(tex, false, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
-      matPillar.roughnessMap = tex;
-      matPillar.roughness = 1.0;
-      matPillar.needsUpdate = true;
-      rockRoughLoaded = true;
-    },
-    undefined,
-    function() {
-      txLoader.load('img/rock/cliff_rough.jpg', function(tex) {
-        setupTexture(tex, false, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
-        matPillar.roughnessMap = tex;
-        matPillar.roughness = 1.0;
-        matPillar.needsUpdate = true;
-      });
-    }
-  );
-
-  /* ── FBM-ШУМ ДЛЯ VERTEX DISPLACEMENT — скальные борозды и выступы ── */
+  /* FBM-шум для вертексного смещения */
   function fbmNoise(angle, y, freq1, freq2, freq3) {
-    /* Крупные выступы как у реальной скалы Чжанцзяцзе */
     var n1 = Math.sin(angle * freq1 + y * 1.4) * Math.cos(y * 0.8) * 0.16;
-    /* Средний рельеф */
     var n2 = Math.sin(angle * freq2 + y * 3.1) * Math.cos(angle * 2.3) * 0.072;
-    /* Мелкий рельеф */
     var n3 = Math.sin(angle * freq3 + y * 7.2) * 0.034;
-    /* Вертикальные борозды — характерны для столбовых скал */
     var groove = Math.sin(angle * 7.0 + 0.5) * 0.065
                + Math.sin(angle * 13.5 + 1.0) * 0.032
                + Math.sin(angle * 5.1 + 2.1) * 0.048
                + Math.sin(angle * 19.3 + 0.3) * 0.018;
-    /* Крупный "выступ" с одной стороны — неравномерность скалы */
     var bulge = Math.max(0, Math.sin(angle * 2.0 + 1.0)) * 0.08 * Math.sin(y * 0.4 + 1.0);
     return n1 + n2 + n3 + groove + bulge;
   }
 
-  /* ── КАМЕННАЯ ГЕОМЕТРИЯ — высокая детализация для PBR ── */
   function makeRockyGeo(topR, botR, height, radSeg, hSeg) {
     var geo = new THREE.CylinderGeometry(topR, botR, height, radSeg, hSeg, false);
     var pos = geo.attributes.position;
@@ -501,57 +466,159 @@ html, body {
     return geo;
   }
 
-  /* ── ЦЕНТРАЛЬНЫЙ СТОЛБ — пучок 3 колонн Чжанцзяцзе ── */
+  var radSeg = isMobile ? 48 : 80;
+  var hSeg   = isMobile ? 24 : 96;
+
+  /* Геометрическая часть столба */
   var pillarGroup = new THREE.Group();
   scene.add(pillarGroup);
 
-  var radSeg = isMobile ? 48 : 96;
-  var hSeg   = isMobile ? 32 : 128;
-
-  /* Главная колонна — высокая, уходит за кадр вверх */
-  var geoMain = makeRockyGeo(0.24, 0.44, 18.0, radSeg, hSeg);
-  var meshMain = new THREE.Mesh(geoMain, matPillar);
-  meshMain.position.y = 2.5;
-  pillarGroup.add(meshMain);
-
-  /* Верхний пик — сужается, уходит за кадр */
-  var geoCap = makeRockyGeo(0.05, 0.24, 7.0, radSeg, 24);
-  var meshCap = new THREE.Mesh(geoCap, matPillar);
-  meshCap.position.y = 14.5;
-  pillarGroup.add(meshCap);
-
-  /* Нижнее основание — уходит в туман */
-  var geoBase = makeRockyGeo(0.54, 0.68, 6.0, Math.floor(radSeg * 0.75), 8);
+  /* Основание — уходит в туман */
+  var geoBase = makeRockyGeo(0.52, 0.68, 6.0, Math.floor(radSeg * 0.75), 8);
   var meshBase = new THREE.Mesh(geoBase, matPillar);
-  meshBase.position.y = -7.0;
+  meshBase.position.y = -6.5;
   pillarGroup.add(meshBase);
 
-  /* Спутник 1 — меньшая колонна слева-сзади, как пучок в Чжанцзяцзе */
-  var geoSat1 = makeRockyGeo(0.12, 0.22, 14.0, Math.floor(radSeg * 0.6), Math.floor(hSeg * 0.5));
-  var meshSat1 = new THREE.Mesh(geoSat1, matPillar);
-  meshSat1.position.set(-0.55, 4.0, -0.45);
-  pillarGroup.add(meshSat1);
+  /* ГЛАВНЫЙ СТВОЛ — реальное фото скалы (matMainPillar) */
+  var geoMain = makeRockyGeo(0.24, 0.46, 20.0, radSeg, hSeg);
+  var meshMain = new THREE.Mesh(geoMain, matMainPillar);
+  meshMain.position.y = 3.0;
+  pillarGroup.add(meshMain);
 
-  /* Спутник 2 — ещё меньше, справа */
-  var geoSat2 = makeRockyGeo(0.08, 0.16, 10.0, Math.floor(radSeg * 0.5), Math.floor(hSeg * 0.35));
-  var meshSat2 = new THREE.Mesh(geoSat2, matPillar);
-  meshSat2.position.set(0.42, 6.0, 0.38);
-  pillarGroup.add(meshSat2);
+  /* Верхний пик */
+  var geoCap = makeRockyGeo(0.05, 0.24, 7.0, radSeg, 24);
+  var meshCap = new THREE.Mesh(geoCap, matMainPillar);
+  meshCap.position.y = 16.0;
+  pillarGroup.add(meshCap);
 
-  /* Emissive кольцо у основания — bloom-цель */
-  var geoRing = new THREE.TorusGeometry(0.60, 0.018, 8, 80);
+  /* Нижняя переходная часть */
+  var geoLower = makeRockyGeo(0.30, 0.52, 5.0, radSeg, Math.floor(hSeg * 0.3));
+  var meshLower = new THREE.Mesh(geoLower, matMainPillar);
+  meshLower.position.y = -2.0;
+  pillarGroup.add(meshLower);
+
+  /* Billboard-группа не используется, но оставляем переменную для animate() */
+  var billboardGroup = new THREE.Group();
+  scene.add(billboardGroup);
+
+  /* Спутники — маленькие скальные столбы по кругу */
+  var satParams = [
+    { x: -0.9, z: -0.6, topR: 0.10, botR: 0.18, h: 12, y: 3.0 },
+    { x:  0.7, z:  0.5, topR: 0.07, botR: 0.14, h:  9, y: 4.0 },
+    { x: -0.6, z:  0.8, topR: 0.12, botR: 0.20, h: 13, y: 2.5 },
+  ];
+  satParams.forEach(function(p) {
+    var geoS = makeRockyGeo(p.topR, p.botR, p.h, Math.floor(radSeg * 0.5), Math.floor(hSeg * 0.3));
+    var meshS = new THREE.Mesh(geoS, matPillar);
+    meshS.position.set(p.x, p.y, p.z);
+    pillarGroup.add(meshS);
+  });
+
+  /* Emissive кольцо у основания */
+  var geoRing = new THREE.TorusGeometry(0.65, 0.016, 8, 80);
   var matRing = new THREE.MeshBasicMaterial({
     color: 0xaaff44,
     transparent: true,
-    opacity: 0.7
+    opacity: 0.6
   });
   var ringGlow = new THREE.Mesh(geoRing, matRing);
-  ringGlow.position.y = -4.8;
+  ringGlow.position.y = -5.2;
   ringGlow.rotation.x = Math.PI / 2;
   pillarGroup.add(ringGlow);
 
-  /* ── ОБЪЁМНЫЙ ТУМАН — аддитивные спрайты/плоскости ── */
-  /* Создаём radial-gradient текстуру в canvas — светящийся туман */
+  /* PBR текстуры для геометрии */
+  function setupTexture(tex, isSRGB, wrapS, wrapT, repX, repY) {
+    if (isSRGB) tex.encoding = THREE.sRGBEncoding;
+    tex.wrapS = wrapS;
+    tex.wrapT = wrapT;
+    tex.repeat.set(repX, repY);
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
+    return tex;
+  }
+
+  txLoader.load('img/rock/rock_diff.jpg',
+    function(tex) {
+      setupTexture(tex, true, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
+      matPillar.map = tex;
+      matPillar.color = new THREE.Color(0.68, 0.72, 0.60);
+      matPillar.needsUpdate = true;
+    }, undefined, function() {
+      txLoader.load('img/rock/cliff_diff.jpg', function(tex) {
+        setupTexture(tex, true, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
+        matPillar.map = tex;
+        matPillar.needsUpdate = true;
+      });
+    }
+  );
+
+  txLoader.load('img/rock/rock_nor.jpg',
+    function(tex) {
+      setupTexture(tex, false, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
+      matPillar.normalMap = tex;
+      matPillar.normalScale = new THREE.Vector2(1.8, 1.8);
+      matPillar.needsUpdate = true;
+    }, undefined, function() {
+      txLoader.load('img/rock/cliff_nor.jpg', function(tex) {
+        setupTexture(tex, false, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
+        matPillar.normalMap = tex;
+        matPillar.normalScale = new THREE.Vector2(1.6, 1.6);
+        matPillar.needsUpdate = true;
+      });
+    }
+  );
+
+  txLoader.load('img/rock/rock_rough.jpg',
+    function(tex) {
+      setupTexture(tex, false, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
+      matPillar.roughnessMap = tex;
+      matPillar.roughness = 1.0;
+      matPillar.needsUpdate = true;
+    }, undefined, function() {
+      txLoader.load('img/rock/cliff_rough.jpg', function(tex) {
+        setupTexture(tex, false, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
+        matPillar.roughnessMap = tex;
+        matPillar.roughness = 1.0;
+        matPillar.needsUpdate = true;
+      });
+    }
+  );
+
+  /* ── LIGHTS — подобраны под зелёно-туманный парк ── */
+
+  /* Hemisphere под цвет панорамы: небо серо-белёсое, земля зелёная */
+  var hemiLight = new THREE.HemisphereLight(0x8a9a8a, 0x1a2a12, 0.55);
+  scene.add(hemiLight);
+
+  /* Рассеянное дневное (туманный парк — нет жёсткого солнца) */
+  var ambLight = new THREE.AmbientLight(0x6a8070, 0.50);
+  scene.add(ambLight);
+
+  /* Мягкое «солнце» через туман (тёплый-нейтральный) */
+  var dirLight = new THREE.DirectionalLight(0xd0d4b0, 0.90);
+  dirLight.position.set(8, 18, 6);
+  scene.add(dirLight);
+
+  /* Контровой — холодный голубой, раздел с небом */
+  var rimLight = new THREE.DirectionalLight(0x6a9aaa, 0.35);
+  rimLight.position.set(-6, 10, -10);
+  scene.add(rimLight);
+
+  /* Подсветка снизу — зелёноватый туман земли */
+  var pointBottom = new THREE.PointLight(0x55991a, 3.2, 14, 2);
+  pointBottom.position.set(0, -3.0, 0);
+  scene.add(pointBottom);
+
+  var pointFog = new THREE.PointLight(0x2a5535, 1.8, 20, 2);
+  pointFog.position.set(-3, -1.5, -4);
+  scene.add(pointFog);
+
+  var pillarSpot = new THREE.PointLight(0xb0c898, 2.2, 24, 2);
+  pillarSpot.position.set(5, 6, 5);
+  scene.add(pillarSpot);
+
+  /* ── ТУМАН (объёмный) — слои у основания ── */
   function makeMistTexture(r, g, b, innerAlpha) {
     var sz = 512;
     var c = document.createElement('canvas');
@@ -559,8 +626,8 @@ html, body {
     var ctx = c.getContext('2d');
     var grad = ctx.createRadialGradient(sz/2, sz/2, 0, sz/2, sz/2, sz/2);
     grad.addColorStop(0,   'rgba(' + r + ',' + g + ',' + b + ',' + innerAlpha.toFixed(2) + ')');
-    grad.addColorStop(0.35,'rgba(' + r + ',' + g + ',' + b + ',' + (innerAlpha * 0.55).toFixed(2) + ')');
-    grad.addColorStop(0.7, 'rgba(' + r + ',' + g + ',' + b + ',' + (innerAlpha * 0.18).toFixed(2) + ')');
+    grad.addColorStop(0.35,'rgba(' + r + ',' + g + ',' + b + ',' + (innerAlpha * 0.50).toFixed(2) + ')');
+    grad.addColorStop(0.7, 'rgba(' + r + ',' + g + ',' + b + ',' + (innerAlpha * 0.15).toFixed(2) + ')');
     grad.addColorStop(1,   'rgba(' + r + ',' + g + ',' + b + ',0)');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, sz, sz);
@@ -569,21 +636,20 @@ html, body {
     return tex;
   }
 
-  /* Тёмно-зелёный туман с лёгким свечением */
-  var mistTexDense = makeMistTexture(18, 55, 35, 0.75);
-  var mistTexLight = makeMistTexture(14, 42, 28, 0.45);
-  var mistTexBlue  = makeMistTexture(10, 30, 40, 0.55);
+  /* Цвет тумана — под зелёно-серую дымку Чжанцзяцзе */
+  var mistTexDense = makeMistTexture(38, 62, 44, 0.68);
+  var mistTexLight = makeMistTexture(28, 50, 38, 0.42);
+  var mistTexBlue  = makeMistTexture(25, 42, 52, 0.50);
 
-  /* Слои тумана у основания столба — AdditiveBlending = виден на тёмном */
   var mistLayers = [];
   var mistParams = [
-    { y: -5.5, sx: 16, sz: 12, op: 0.70, spd:  0.008, tex: 'dense' },
-    { y: -4.0, sx: 12, sz:  9, op: 0.55, spd: -0.006, tex: 'light' },
-    { y: -2.5, sx:  9, sz:  7, op: 0.40, spd:  0.010, tex: 'blue'  },
-    { y: -1.0, sx: 13, sz: 10, op: 0.28, spd: -0.007, tex: 'dense' },
-    { y:  0.8, sx: 10, sz:  8, op: 0.18, spd:  0.009, tex: 'light' },
-    { y: -7.0, sx: 20, sz: 16, op: 0.80, spd:  0.005, tex: 'dense' },
-    { y: -3.5, sx: 14, sz: 11, op: 0.35, spd: -0.011, tex: 'blue'  },
+    { y: -5.5, sx: 18, sz: 14, op: 0.65, spd:  0.008, tex: 'dense' },
+    { y: -4.0, sx: 14, sz: 10, op: 0.50, spd: -0.006, tex: 'light' },
+    { y: -2.5, sx: 10, sz:  8, op: 0.38, spd:  0.010, tex: 'blue'  },
+    { y: -1.0, sx: 15, sz: 11, op: 0.26, spd: -0.007, tex: 'dense' },
+    { y:  0.8, sx: 11, sz:  9, op: 0.16, spd:  0.009, tex: 'light' },
+    { y: -7.0, sx: 22, sz: 18, op: 0.78, spd:  0.005, tex: 'dense' },
+    { y: -3.5, sx: 16, sz: 12, op: 0.32, spd: -0.011, tex: 'blue'  },
   ];
 
   mistParams.forEach(function(p, i) {
@@ -599,7 +665,6 @@ html, body {
     });
     var mesh = new THREE.Mesh(geo, mat);
     mesh.rotation.x = -Math.PI / 2;
-    /* Небольшой наклон для разнообразия */
     mesh.rotation.z = (i / mistParams.length) * Math.PI * 2;
     mesh.position.y = p.y;
     mesh.position.x = (Math.random() - 0.5) * 1.5;
@@ -609,75 +674,6 @@ html, body {
     mesh.userData.phase = i * 1.3;
     scene.add(mesh);
     mistLayers.push(mesh);
-  });
-
-  /* Дополнительный слой тумана на средней дистанции */
-  var midMistParams = [
-    { angle: 0.8,  dist: 8,  y: -3.5, sx: 16, sz: 10, op: 0.35 },
-    { angle: 2.5,  dist: 10, y: -4.0, sx: 20, sz: 12, op: 0.28 },
-    { angle: 4.2,  dist: 7,  y: -2.5, sx: 14, sz: 8,  op: 0.32 },
-  ];
-
-  midMistParams.forEach(function(p) {
-    var geo = new THREE.PlaneGeometry(p.sx, p.sz);
-    var mat = new THREE.MeshBasicMaterial({
-      map: mistTexLight,
-      transparent: true,
-      opacity: p.op,
-      depthWrite: false,
-      blending: THREE.NormalBlending,
-      side: THREE.DoubleSide,
-    });
-    var mesh = new THREE.Mesh(geo, mat);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(
-      Math.cos(p.angle) * p.dist,
-      p.y,
-      Math.sin(p.angle) * p.dist
-    );
-    scene.add(mesh);
-    midMistParams._mesh = mesh;
-  });
-
-  /* ── ФОНОВЫЕ ПИКИ — силуэты тонут в тумане ── */
-  var peakTxList = [];
-  ['img/034.jpg', 'img/048.jpg', 'img/055.jpg'].forEach(function(src) {
-    txLoader.load(src, function(tex) {
-      tex.encoding = THREE.sRGBEncoding;
-      peakTxList.push(tex);
-    });
-  });
-
-  var peakParams = [
-    [0.4,  22, 0.0, 1.2],
-    [1.1,  27, -1.0, 0.9],
-    [2.0,  18, 0.5, 1.4],
-    [3.0,  24, -0.5, 1.0],
-    [3.9,  20, 0.0, 1.1],
-    [4.8,  29, -1.0, 0.85],
-    [5.6,  21, 0.5, 1.3],
-  ];
-
-  peakParams.forEach(function(p, idx) {
-    var angle = p[0], dist = p[1], baseY = p[2], scale = p[3];
-    var peakH = (8.0 + Math.random() * 6.0) * scale;
-    var peakR = (0.8 + Math.random() * 0.6) * scale;
-    var geo = makeRockyGeo(0.05, peakR, peakH, isMobile ? 16 : 32, 4);
-    var col = new THREE.Color(
-      0.03 + Math.random() * 0.025,
-      0.05 + Math.random() * 0.03,
-      0.03 + Math.random() * 0.025
-    );
-    var mat = new THREE.MeshStandardMaterial({
-      color: col, roughness: 0.98, metalness: 0.0
-    });
-    var mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(
-      Math.cos(angle) * dist,
-      baseY + peakH * 0.5 - 5.0,
-      Math.sin(angle) * dist
-    );
-    scene.add(mesh);
   });
 
   /* ── КОЛЬЦО ФОТОГРАФИЙ ── */
@@ -716,26 +712,23 @@ html, body {
     );
     group.rotation.y = angle + Math.PI;
 
-    /* Рамка */
     var frameMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(photoW + 0.05, photoH + 0.05),
       new THREE.MeshBasicMaterial({ color: 0x1a2a1a, side: THREE.FrontSide })
     );
     group.add(frameMesh);
 
-    /* Свечение рамки — bloom-цель */
     var glowMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(photoW + 0.16, photoH + 0.16),
       new THREE.MeshBasicMaterial({
         color: 0x55ff99,
-        transparent: true, opacity: 0.14,
+        transparent: true, opacity: 0.12,
         side: THREE.FrontSide, depthWrite: false,
       })
     );
     glowMesh.position.z = -0.01;
     group.add(glowMesh);
 
-    /* Фото */
     var photoMat = new THREE.MeshStandardMaterial({
       roughness: 0.50, metalness: 0.0, color: 0xffffff,
     });
@@ -764,30 +757,27 @@ html, body {
     photoGroup.add(group);
   });
 
-  /* ── СВЕТЯЩАЯСЯ ПЫЛЬ (Points) — крупнее и заметнее ── */
+  /* ── СВЕТЯЩАЯСЯ ПЫЛЬ ── */
   var particleCount = isMobile ? 700 : 1400;
   var pPositions = new Float32Array(particleCount * 3);
   var pSpeeds    = new Float32Array(particleCount);
-  var pPhases    = new Float32Array(particleCount);
 
   for (var i = 0; i < particleCount; i++) {
-    /* Концентрируем вблизи столба, не на горизонте */
     var r = 2.0 + Math.random() * 18;
     var a = Math.random() * Math.PI * 2;
     pPositions[i*3]   = Math.cos(a) * r;
     pPositions[i*3+1] = (Math.random() - 0.3) * 22 + 2;
     pPositions[i*3+2] = Math.sin(a) * r;
     pSpeeds[i]  = 0.15 + Math.random() * 0.35;
-    pPhases[i]  = Math.random() * Math.PI * 2;
   }
 
   var dustGeo = new THREE.BufferGeometry();
   dustGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
   var dustMat = new THREE.PointsMaterial({
-    color: 0xccffdd,
-    size: isMobile ? 0.12 : 0.15,
+    color: 0xd0ffcc,
+    size: isMobile ? 0.10 : 0.13,
     transparent: true,
-    opacity: 0.70,
+    opacity: 0.55,
     sizeAttenuation: true,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
@@ -796,9 +786,9 @@ html, body {
   scene.add(dustPoints);
 
   /* ── ОРБИТАЛЬНЫЙ ОБЛЁТ ── */
-  var orbitPeriod   = 35.0;
+  var orbitPeriod   = 38.0;
   var orbitBobAmp   = 0.9;
-  var orbitBobPeriod = 12.0;
+  var orbitBobPeriod = 13.0;
 
   var mouse = { x: 0, y: 0, tx: 0, ty: 0 };
   window.addEventListener('mousemove', function(e) {
@@ -823,24 +813,39 @@ html, body {
   var clock = new THREE.Clock();
   var dustPos = dustGeo.attributes.position;
 
+  /* Панорама медленно вращается — «движение внутри парка» */
+  var panoRotSpeed = 0.0008;  /* очень медленно */
+
   /* ── ANIMATE ── */
   function animate() {
     requestAnimationFrame(animate);
     var t = clock.getElapsedTime();
 
-    /* Столб медленно вращается */
-    pillarGroup.rotation.y = t * 0.014;
+    /* Скайбокс медленно вращается (ощущение движения в парке) */
+    if (skyMesh) {
+      skyMesh.rotation.y = t * panoRotSpeed;
+    }
 
-    /* Кольцо фото — в другую сторону */
+    /* Billboard-столб: медленно поворачивается к зрителю (billboard behavior) */
+    if (billboardGroup) {
+      /* Поворачиваемся к камере по Y */
+      var camAngle = Math.atan2(camera.position.x, camera.position.z);
+      billboardGroup.rotation.y = camAngle + t * 0.008; /* лёгкое собственное вращение */
+    }
+
+    /* Геометрические части медленно вращаются */
+    pillarGroup.rotation.y = t * 0.010;
+
+    /* Кольцо фото */
     photoGroup.rotation.y = -t * 0.018;
-    photoGroup.rotation.x = Math.sin(t * 0.28) * 0.022;
+    photoGroup.rotation.x = Math.sin(t * 0.28) * 0.020;
 
-    /* Пульсация кольца */
-    matRing.opacity = 0.45 + Math.sin(t * 1.7) * 0.25;
-    pointBottom.intensity = 3.0 + Math.sin(t * 1.1) * 0.8;
-    pointFog.intensity    = 1.7 + Math.sin(t * 0.7 + 1.0) * 0.5;
+    /* Пульсация кольца и огней */
+    matRing.opacity = 0.40 + Math.sin(t * 1.7) * 0.22;
+    pointBottom.intensity = 2.8 + Math.sin(t * 1.1) * 0.7;
+    pointFog.intensity    = 1.5 + Math.sin(t * 0.7 + 1.0) * 0.4;
 
-    /* ── ДЫМКА — дрейф слоёв ── */
+    /* Туман */
     mistLayers.forEach(function(m) {
       var spd = m.userData.speed;
       var ph  = m.userData.phase;
@@ -849,10 +854,9 @@ html, body {
       m.position.x = Math.sin(t * 0.08 + ph) * 0.8;
     });
 
-    /* ── ПЫЛЬ — дрейф вверх ── */
+    /* Пыль */
     for (var i = 0; i < particleCount; i++) {
       pPositions[i*3+1] += pSpeeds[i] * 0.006;
-      /* Переносим вниз когда уходит слишком высоко */
       if (pPositions[i*3+1] > 15) {
         pPositions[i*3+1] = -8 + Math.random() * 2;
       }
@@ -877,14 +881,13 @@ html, body {
     camera.position.set(camX, bobY, camZ);
     camera.lookAt(0, 2.5, 0);
 
-    pillarSpot.position.set(camX * 0.7, bobY + 2.5, camZ * 0.7);
+    pillarSpot.position.set(camX * 0.7, bobY + 3.0, camZ * 0.7);
 
-    /* Рендер — через composer (bloom) или напрямую */
+    /* Рендер */
     if (composer && useBloom) {
       try {
         composer.render();
       } catch(e) {
-        /* Если boom упал во время рендера — переключаемся на прямой */
         useBloom = false;
         composer = null;
         renderer.render(scene, camera);
