@@ -1,12 +1,20 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" translate="no" class="notranslate">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google" content="notranslate">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>AVATAR MAP — Карта парка Чжанцзяцзе</title>
-<meta name="description" content="PDF-карты национального парка Чжанцзяцзе (Горы Аватара). Живые сканы настоящих бумажных карт. 150₽.">
+<meta name="description" content="PDF-карты национального парка Чжанцзяцзе. Живые сканы настоящих бумажных карт. 150₽.">
 
-<!-- Clash Display (ближайший к BOXING) + Satoshi (body) — Fontshare CDN -->
+<!-- SKIP LOADER: синхронный скрипт — срабатывает ДО рендера DOM -->
+<script>if(location.search.indexOf('skiploader')!==-1)document.documentElement.setAttribute('data-sl','1');</script>
+<style>
+[data-sl="1"] #loader{display:none!important}
+[data-sl="1"] #hero{opacity:1!important}
+</style>
+
+<!-- Clash Display + Satoshi — Fontshare CDN -->
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=clash-display@700,600&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
 
@@ -14,11 +22,10 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:      #1d1d1d;
-  --text:    #ffffde;
-  --accent:  #e8fe25;
-  --sec:     #7b60fb;
-  --mint:    #25fea8;
+  --bg:    #1d1d1d;
+  --text:  #ffffde;
+  --acc:   #e8fe25;
+  --mint:  #25fea8;
   --fd: 'Clash Display', 'Arial Black', Impact, sans-serif;
   --fb: 'Satoshi', 'Inter', system-ui, sans-serif;
 }
@@ -32,42 +39,36 @@ html, body {
   cursor: none;
 }
 
-/* ─ CURSOR ─ */
-#cursor-dot {
-  position: fixed; top: 0; left: 0;
+/* ── CURSOR ── */
+#cur-dot {
+  position: fixed; top: 0; left: 0; z-index: 9999;
   width: 8px; height: 8px;
-  background: var(--accent);
+  background: var(--acc);
   border-radius: 50%;
-  pointer-events: none; z-index: 9999;
+  pointer-events: none;
   transform: translate(-50%,-50%);
-  will-change: left, top;
 }
-#cursor-ring {
-  position: fixed; top: 0; left: 0;
+#cur-ring {
+  position: fixed; top: 0; left: 0; z-index: 9998;
   width: 36px; height: 36px;
-  border: 1.5px solid rgba(255,255,222,0.55);
+  border: 1.5px solid rgba(255,255,222,.5);
   border-radius: 50%;
-  pointer-events: none; z-index: 9998;
+  pointer-events: none;
   transform: translate(-50%,-50%);
-  will-change: left, top;
 }
 @media (pointer: coarse) {
-  #cursor-dot, #cursor-ring { display: none; }
+  #cur-dot, #cur-ring { display: none; }
   html, body { cursor: auto; }
 }
 
-/* ─ LOADING SCREEN ─ */
-#loading-screen {
-  position: fixed; inset: 0;
+/* ── LOADING SCREEN ── */
+#loader {
+  position: fixed; inset: 0; z-index: 1000;
   background: var(--mint);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   transform-origin: center center;
-  will-change: transform, opacity;
 }
-#loading-counter {
+#loader-count {
   font-family: var(--fd);
   font-size: clamp(5rem, 18vw, 13rem);
   font-weight: 700;
@@ -77,38 +78,15 @@ html, body {
   user-select: none;
 }
 
-/* ─ CANVAS ─ */
-#three-canvas {
+/* ── CANVAS ── */
+#gl {
   position: fixed; top: 0; left: 0;
   width: 100dvw; height: 100dvh;
   z-index: 1;
   display: block;
 }
 
-/* ─ CSS BLOB fallback ─ */
-#css-blob {
-  position: fixed;
-  top: 50%; left: 50%;
-  transform: translate(-50%,-50%);
-  width: min(52vw,52vh);
-  height: min(52vw,52vh);
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%,
-    #69D2B7 0%, #0d2230 55%, #1d1d1d 82%);
-  filter: blur(3px);
-  z-index: 2;
-  display: none;
-  animation: blobPulse 7s ease-in-out infinite;
-}
-@keyframes blobPulse {
-  0%,100% { transform: translate(-50%,-50%) scale(1)    rotate(0deg);  }
-  33%     { transform: translate(-50%,-50%) scale(1.06)  rotate(5deg);  }
-  66%     { transform: translate(-50%,-50%) scale(0.96) rotate(-4deg); }
-}
-
-/* ─ HERO ─ */
-main { position: relative; z-index: 10; }
-
+/* ── HERO ── */
 #hero {
   position: relative; z-index: 10;
   width: 100%; height: 100dvh;
@@ -117,41 +95,40 @@ main { position: relative; z-index: 10; }
   padding: clamp(1.5rem, 3vw, 2.5rem);
   pointer-events: none;
   opacity: 0;
+  transition: opacity 0.7s ease;
 }
-/* soft grid подложка */
+/* grid подложка */
 #hero::before {
   content: '';
   position: absolute; inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,222,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,222,0.03) 1px, transparent 1px);
+    linear-gradient(rgba(255,255,222,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,222,.035) 1px, transparent 1px);
   background-size: 60px 60px;
   pointer-events: none; z-index: 0;
 }
-.hero-inner { position: relative; z-index: 1; }
+.hi { position: relative; z-index: 1; }
 
-/* мета строка */
 .hero-meta {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   margin-bottom: 0.6rem;
   font-family: var(--fd);
-  font-size: clamp(0.55rem, 1.1vw, 0.82rem);
+  font-size: clamp(.55rem, 1.1vw, .82rem);
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: .14em;
   text-transform: uppercase;
   color: var(--text);
-  opacity: 0.62;
+  opacity: .62;
 }
 
-/* Editorial заголовок scaleY(2) */
 .hero-title {
   font-family: var(--fd);
-  font-size: clamp(4rem, 13.4vw, 13.5rem);
+  font-size: clamp(3.5rem, 13.4vw, 13.5rem);
   font-weight: 700;
-  letter-spacing: -0.025em;
-  line-height: 0.85;
+  letter-spacing: -.025em;
+  line-height: .85;
   text-transform: uppercase;
   color: var(--text);
   transform: scaleY(2);
@@ -161,472 +138,315 @@ main { position: relative; z-index: 10; }
   pointer-events: auto;
 }
 
-/* CTA */
 .hero-cta {
   pointer-events: auto;
   display: inline-block;
   font-family: var(--fd);
-  font-size: clamp(0.6rem, 1.1vw, 0.85rem);
+  font-size: clamp(.6rem, 1.1vw, .85rem);
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: .16em;
   text-transform: uppercase;
   color: var(--bg);
-  background: var(--accent);
-  padding: 0.65em 1.3em;
+  background: var(--acc);
+  padding: .65em 1.3em;
   text-decoration: none;
   cursor: none;
-  transition: background 0.2s;
+  transition: background .2s;
   margin-bottom: 2.5rem;
 }
 .hero-cta:hover { background: var(--text); }
 
-/* placeholder */
-#next-section {
-  position: relative; z-index: 10;
-  min-height: 100vh;
-  background: var(--bg);
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--fd);
-  font-size: 0.85rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255,255,222,0.12);
-  border-top: 1px solid rgba(255,255,222,0.05);
+/* ── MOBILE ── */
+@media (max-width: 767px) {
+  .hero-title {
+    /* AVATAR = 6 chars + kerning, нужно влезть в ~360px */
+    font-size: clamp(2rem, 14.5vw, 4.5rem);
+    letter-spacing: -0.02em;
+    margin-bottom: 2rem;
+    transform-origin: bottom left;
+    /* разрешить выход за пределы при scaleY */
+    overflow: visible;
+  }
+  #hero {
+    padding: 1rem 1rem;
+    overflow: visible;
+  }
+  .hero-meta {
+    font-size: clamp(.42rem, 2.6vw, .65rem);
+    letter-spacing: .1em;
+  }
 }
 </style>
 </head>
-<body>
+<body translate="no">
 
-<div id="cursor-dot"></div>
-<div id="cursor-ring"></div>
+<div id="cur-dot"></div>
+<div id="cur-ring"></div>
 
-<div id="loading-screen">
-  <div id="loading-counter">000%</div>
+<div id="loader">
+  <div id="loader-count">000%</div>
 </div>
 
-<canvas id="three-canvas"></canvas>
-<div id="css-blob"></div>
+<canvas id="gl"></canvas>
 
 <main>
   <section id="hero">
-    <div class="hero-inner">
+    <div class="hi">
       <div class="hero-meta">
         <span>Карта парка Аватар</span>
         <span>Живые сканы &bull; Чжанцзяцзе</span>
       </div>
       <h1 class="hero-title">AVATAR<br>MAP</h1>
       <a class="hero-cta" href="https://t.me/Avatarparkmap_bot" target="_blank" rel="noopener">
-        [ купить &middot; 150&nbsp;₽ ]
+        [ купить &middot; 150&nbsp;&#8381; ]
       </a>
     </div>
   </section>
-  <div id="next-section">— coming soon —</div>
 </main>
 
-<!-- Three.js importmap -->
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js"
+<!-- Three.js r128 UMD (global THREE) — локальный файл -->
+<script src="./three.min.js"></script>
+<!-- GSAP — локальный -->
+<script src="./gsap.min.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════
+   VERTEX SHADER — Low-frequency simplex3 деформация
+   freq=0.8, amp=0.15, speed=0.18
+   НЕТ высокочастотного шума
+═══════════════════════════════════════════════ */
+var VS = [
+'precision highp float;',
+'uniform float uTime;',
+'varying vec3 vNormal;',
+'varying vec3 vPos;',
+
+/* Simplex 3D noise — Ashima Arts */
+'vec3 m3(vec3 x){return x-floor(x*(1./289.))*289.;}',
+'vec4 m4(vec4 x){return x-floor(x*(1./289.))*289.;}',
+'vec4 pm(vec4 x){return m4(((x*34.)+1.)*x);}',
+'vec4 ts(vec4 r){return 1.79284291400159-0.85373472095314*r;}',
+'float sn3(vec3 v){',
+'  const vec2 C=vec2(1./6.,1./3.);',
+'  const vec4 D=vec4(0.,.5,1.,2.);',
+'  vec3 i=floor(v+dot(v,C.yyy));',
+'  vec3 x0=v-i+dot(i,C.xxx);',
+'  vec3 g=step(x0.yzx,x0.xyz);vec3 l=1.-g;',
+'  vec3 i1=min(g.xyz,l.zxy);vec3 i2=max(g.xyz,l.zxy);',
+'  vec3 x1=x0-i1+C.xxx;vec3 x2=x0-i2+C.yyy;vec3 x3=x0-D.yyy;',
+'  i=m3(i);',
+'  vec4 p=pm(pm(pm(i.z+vec4(0.,i1.z,i2.z,1.))+i.y+vec4(0.,i1.y,i2.y,1.))+i.x+vec4(0.,i1.x,i2.x,1.));',
+'  float n_=.142857142857;vec3 ns=n_*D.wyz-D.xzx;',
+'  vec4 j=p-49.*floor(p*ns.z*ns.z);',
+'  vec4 x_=floor(j*ns.z);vec4 y_=floor(j-7.*x_);',
+'  vec4 xs=x_*ns.x+ns.yyyy;vec4 ys=y_*ns.x+ns.yyyy;',
+'  vec4 h=1.-abs(xs)-abs(ys);',
+'  vec4 b0=vec4(xs.xy,ys.xy);vec4 b1=vec4(xs.zw,ys.zw);',
+'  vec4 s0=floor(b0)*2.+1.;vec4 s1=floor(b1)*2.+1.;',
+'  vec4 sh=-step(h,vec4(0.));',
+'  vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;',
+'  vec3 p0=vec3(a0.xy,h.x);vec3 p1=vec3(a0.zw,h.y);',
+'  vec3 p2=vec3(a1.xy,h.z);vec3 p3=vec3(a1.zw,h.w);',
+'  vec4 nm=ts(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));',
+'  p0*=nm.x;p1*=nm.y;p2*=nm.z;p3*=nm.w;',
+'  vec4 m=max(.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.);',
+'  m=m*m;',
+'  return 42.*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));',
+'}',
+
+'void main(){',
+'  vNormal=normal;',
+'  /* LOW-FREQ деформация: freq=0.8, amp=0.15 */',
+'  float n=sn3(position*0.8+uTime*0.18);',
+'  vec3 pos=position+normal*n*0.15;',
+'  /* мягкое Y-дыхание */',
+'  pos+=normal*sin(uTime*0.35+position.y*1.2)*0.04;',
+'  vPos=pos;',
+'  gl_Position=projectionMatrix*modelViewMatrix*vec4(pos,1.0);',
+'}'
+].join('\n');
+
+/* ═══════════════════════════════════════════════
+   FRAGMENT SHADER
+   - gradient mint→deep-sea по нормали (надёжнее на статичном скрине)
+   - fresnel rim
+   - diffuse + specular
+═══════════════════════════════════════════════ */
+var FS = [
+'precision highp float;',
+'uniform float uTime;',
+'uniform vec3 uColorA;',
+'uniform vec3 uColorB;',
+'uniform vec3 uRimColor;',
+'varying vec3 vNormal;',
+'varying vec3 vPos;',
+
+'void main(){',
+'  vec3 n=normalize(vNormal);',
+'  vec3 viewDir=normalize(cameraPosition-vPos);',
+'  vec3 light=normalize(vec3(1.5,1.2,2.0));',
+
+  /* gradient по нормали — надёжно виден даже без движения */
+'  float t=n.y*0.5+0.5;',
+'  vec3 col=mix(uColorB,uColorA,t);',
+
+  /* diffuse */
+'  float diff=max(dot(n,light),0.0);',
+'  col+=diff*uColorA*0.22;',
+
+  /* fresnel rim */
+'  float fr=pow(1.0-max(dot(viewDir,n),0.0),2.5);',
+'  col+=fr*uRimColor*0.40;',
+
+  /* specular */
+'  vec3 hv=normalize(light+viewDir);',
+'  float sp=pow(max(dot(n,hv),0.0),48.0);',
+'  col+=sp*vec3(1.0)*0.35;',
+
+'  gl_FragColor=vec4(clamp(col,0.,1.),1.0);',
+'}'
+].join('\n');
+
+/* ═══════════════════════════════════════════════
+   THREE.JS SCENE
+═══════════════════════════════════════════════ */
+(function() {
+  var isMobile = window.innerWidth < 768;
+  var dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5);
+  var canvas = document.getElementById('gl');
+
+  var renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
+    renderer.setPixelRatio(dpr);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+  } catch(e) {
+    console.warn('WebGL failed:', e);
+    canvas.style.display = 'none';
+    renderer = null;
   }
-}
-</script>
 
-<!-- GSAP (global script, доступен как window.gsap) -->
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-<!-- Lenis smooth scroll -->
-<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.14/dist/lenis.min.js"></script>
+  if (!renderer) return;
 
-<script type="module">
-import * as THREE from 'three';
-
-/* ══════════════════════════════════════════════════
-   VERTEX SHADER — Simplex 3D noise деформация шара
-══════════════════════════════════════════════════ */
-const vertexShader = `
-precision highp float;
-uniform float uTime;
-uniform float uDistort;
-varying vec3 vNormal;
-varying vec3 vWorldPos;
-
-// Simplex 3D noise (Ashima Arts / Stefan Gustavson)
-vec3 _mod289(vec3 x){ return x - floor(x*(1.0/289.0))*289.0; }
-vec4 _mod289(vec4 x){ return x - floor(x*(1.0/289.0))*289.0; }
-vec4 _permute(vec4 x){ return _mod289(((x*34.0)+1.0)*x); }
-vec4 _taylorInvSqrt(vec4 r){ return 1.79284291400159 - 0.85373472095314*r; }
-
-float snoise3(vec3 v){
-  const vec2 C = vec2(1.0/6.0, 1.0/3.0);
-  const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-
-  vec3 i  = floor(v + dot(v, C.yyy));
-  vec3 x0 = v - i + dot(i, C.xxx);
-
-  vec3 g   = step(x0.yzx, x0.xyz);
-  vec3 l   = 1.0 - g;
-  vec3 i1  = min(g.xyz, l.zxy);
-  vec3 i2  = max(g.xyz, l.zxy);
-
-  vec3 x1 = x0 - i1 + C.xxx;
-  vec3 x2 = x0 - i2 + C.yyy;
-  vec3 x3 = x0 - D.yyy;
-
-  i = _mod289(i);
-  vec4 p = _permute(_permute(_permute(
-      i.z + vec4(0.,i1.z,i2.z,1.))
-    + i.y + vec4(0.,i1.y,i2.y,1.))
-    + i.x + vec4(0.,i1.x,i2.x,1.));
-
-  float n_ = 0.142857142857;
-  vec3 ns = n_ * D.wyz - D.xzx;
-
-  vec4 j = p - 49.0*floor(p*ns.z*ns.z);
-
-  vec4 x_ = floor(j*ns.z);
-  vec4 y_ = floor(j - 7.0*x_);
-
-  vec4 xs = x_*ns.x + ns.yyyy;
-  vec4 ys = y_*ns.x + ns.yyyy;
-  vec4 h  = 1.0 - abs(xs) - abs(ys);
-
-  vec4 b0 = vec4(xs.xy, ys.xy);
-  vec4 b1 = vec4(xs.zw, ys.zw);
-
-  vec4 s0 = floor(b0)*2.0 + 1.0;
-  vec4 s1 = floor(b1)*2.0 + 1.0;
-  vec4 sh = -step(h, vec4(0.));
-
-  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
-  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
-
-  vec3 p0 = vec3(a0.xy,  h.x);
-  vec3 p1 = vec3(a0.zw,  h.y);
-  vec3 p2 = vec3(a1.xy,  h.z);
-  vec3 p3 = vec3(a1.zw,  h.w);
-
-  vec4 norm = _taylorInvSqrt(vec4(
-    dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
-  p0*=norm.x; p1*=norm.y; p2*=norm.z; p3*=norm.w;
-
-  vec4 m = max(0.6 - vec4(
-    dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-  m = m*m;
-  return 42.0 * dot(m*m, vec4(
-    dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
-}
-
-void main(){
-  vNormal = normal;
-  vec3 pos = position;
-
-  // 1) noise-bump по нормали → живая деформация
-  float n = snoise3(pos * 1.6 + uTime * 0.22);
-  pos += normal * n * (0.35 * uDistort);
-
-  // 2) sin-волна по Z (из оригинала Zera Studio)
-  pos.z += sin(pos.x * 20.0 + uTime * 3.0) * 0.05;
-
-  // 3) медленная пульсация по Y
-  pos += normal * sin(uTime * 0.65 + pos.y * 3.2) * 0.04;
-
-  vWorldPos = pos;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-}
-`;
-
-/* ══════════════════════════════════════════════════
-   FRAGMENT SHADER — Simplex 2D noise + rim + grain
-══════════════════════════════════════════════════ */
-const fragmentShader = `
-precision highp float;
-uniform float uTime;
-uniform vec3  uBrightColor;
-uniform vec3  uDarkColor;
-uniform vec2  uResolution;
-varying vec3 vNormal;
-varying vec3 vWorldPos;
-
-// Simplex 2D noise
-vec3 _p2(vec3 x){ return mod(((x*34.0)+1.0)*x, 289.0); }
-float snoise2(vec2 v){
-  const vec4 C = vec4(.211324865405187,.366025403784439,-.577350269189626,.024390243902439);
-  vec2 i  = floor(v + dot(v, C.yy));
-  vec2 x0 = v - i + dot(i, C.xx);
-  vec2 i1  = (x0.x > x0.y) ? vec2(1.,0.) : vec2(0.,1.);
-  vec4 x12 = x0.xyxy + C.xxzz;
-  x12.xy -= i1;
-  i = mod(i, 289.0);
-  vec3 p = _p2(_p2(i.y + vec3(0.,i1.y,1.)) + i.x + vec3(0.,i1.x,1.));
-  vec3 m = max(.5 - vec3(dot(x0,x0),dot(x12.xy,x12.xy),dot(x12.zw,x12.zw)), 0.);
-  m = m*m; m = m*m;
-  vec3 x2 = 2.*fract(p*C.www) - 1.;
-  vec3 h = abs(x2) - .5;
-  vec3 ox = floor(x2+.5);
-  vec3 a0 = x2 - ox;
-  m *= 1.79284291400159 - 0.85373472095314*(a0*a0+h*h);
-  vec3 g;
-  g.x  = a0.x *x0.x  + h.x *x0.y;
-  g.yz = a0.yz*x12.xz + h.yz*x12.yw;
-  return 130.*dot(m,g);
-}
-
-float hash21(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123); }
-
-void main(){
-  // noise-раскраска поверхности
-  float n = snoise2(vWorldPos.xy * 1.8 + uTime * 0.12) * 0.5 + 0.5;
-  vec3 col = mix(uDarkColor, uBrightColor, n);
-
-  // rim lighting (нормаль vs cameraPosition — Three.js built-in)
-  vec3 vd  = normalize(cameraPosition - vWorldPos);
-  float rim = pow(1.0 - max(dot(vd, normalize(vNormal)), 0.0), 2.2);
-  col += rim * uBrightColor * 0.55;
-
-  // grain
-  vec2 gUv = gl_FragCoord.xy / max(uResolution, vec2(1.));
-  col += hash21(gUv + fract(uTime * 0.04)) * 0.07 - 0.035;
-
-  gl_FragColor = vec4(clamp(col, 0., 1.), 1.0);
-}
-`;
-
-/* ══════════════════════════════════════════════════
-   SHARED UI STATE
-══════════════════════════════════════════════════ */
-const loadingEl  = document.getElementById('loading-screen');
-const counterEl  = document.getElementById('loading-counter');
-const heroEl     = document.getElementById('hero');
-const blobEl     = document.getElementById('css-blob');
-const dot        = document.getElementById('cursor-dot');
-const ring       = document.getElementById('cursor-ring');
-
-let ballReady = false;
-let countDone = false;
-let cx = 0, cy = 0, rx = 0, ry = 0;
-
-// Mouse cursor tracking
-window.addEventListener('mousemove', e => { cx = e.clientX; cy = e.clientY; });
-
-/* ══════════════════════════════════════════════════
-   LOADING → REVEAL (GSAP воронка или CSS fallback)
-══════════════════════════════════════════════════ */
-function tryReveal() {
-  if (!ballReady || !countDone) return;
-
-  const W = window.innerWidth;
-  const H = window.innerHeight;
-  const scaleVal = (Math.max(W, H, 1920) / Math.min(W, H)) * 22;
-
-  if (typeof gsap !== 'undefined') {
-    // GSAP воронка
-    gsap.timeline()
-      .to(loadingEl, { rotate: 180, scale: scaleVal, duration: 0.85, ease: 'power3.in' })
-      .to(loadingEl, { opacity: 0, duration: 0.3, ease: 'power2.out',
-          onComplete: () => { loadingEl.style.display = 'none'; }
-        }, '-=0.15')
-      .to(heroEl, { opacity: 1, duration: 0.7, ease: 'power2.out' }, '-=0.3');
-  } else {
-    // CSS fallback
-    Object.assign(loadingEl.style, {
-      transition: `transform .85s cubic-bezier(.55,0,1,.45), opacity .3s ease .72s`,
-      transform:  `rotate(180deg) scale(${scaleVal})`,
-      opacity:    '0',
-    });
-    setTimeout(() => { loadingEl.style.display = 'none'; }, 1150);
-    Object.assign(heroEl.style, {
-      transition: 'opacity .7s ease .78s',
-      opacity:    '1',
-    });
-  }
-}
-
-/* ══════════════════════════════════════════════════
-   СЧЁТЧИК 000% → 100%
-══════════════════════════════════════════════════ */
-function runCounter() {
-  const DURATION = 2400;
-  const t0 = performance.now();
-  function tick(now) {
-    const p = Math.min((now - t0) / DURATION, 1);
-    const e = p < 0.5 ? 2*p*p : -1 + (4 - 2*p)*p; // ease-in-out
-    counterEl.textContent = String(Math.floor(e * 100)).padStart(3,'0') + '%';
-    if (p < 1) {
-      requestAnimationFrame(tick);
-    } else {
-      counterEl.textContent = '100%';
-      countDone = true;
-      tryReveal();
-    }
-  }
-  requestAnimationFrame(tick);
-}
-
-/* ══════════════════════════════════════════════════
-   CSS-BLOB fallback (если WebGL недоступен)
-══════════════════════════════════════════════════ */
-function startNoWebGL() {
-  blobEl.style.display = 'block';
-  // cursor loop
-  function cursorTick() {
-    requestAnimationFrame(cursorTick);
-    if (dot)  { dot.style.left = cx + 'px'; dot.style.top = cy + 'px'; }
-    if (ring) {
-      rx += (cx - rx) * 0.11; ry += (cy - ry) * 0.11;
-      ring.style.left = rx + 'px'; ring.style.top = ry + 'px';
-    }
-  }
-  cursorTick();
-  ballReady = true;
-  runCounter();
-}
-
-/* ══════════════════════════════════════════════════
-   THREE.JS SCENE SETUP
-══════════════════════════════════════════════════ */
-const isMobile = window.innerWidth < 768;
-const dpr      = Math.min(window.devicePixelRatio || 1, isMobile ? 1.0 : 1.5);
-const canvas   = document.getElementById('three-canvas');
-
-let renderer = null;
-try {
-  renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: !isMobile,
-    alpha: false,
-    powerPreference: 'high-performance',
-  });
-  renderer.setPixelRatio(dpr);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-} catch(e) {
-  console.warn('WebGL unavailable, CSS blob fallback');
-  canvas.style.display = 'none';
-  renderer = null;
-}
-
-let camera, scene, sphere, uniforms, clock, lenis;
-
-if (renderer) {
-  // Камера: точно как оригинал Zera
-  camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 100);
+  var camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 100);
   camera.position.set(0, 0, 8);
 
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color('#1d1d1d');
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x1d1d1d);
 
-  const seg = isMobile ? 64 : 128;
-  const geo = new THREE.SphereGeometry(1.8, seg, seg);
+  /* Ambient + Directional света для глубины */
+  var ambient = new THREE.AmbientLight(0x404050, 0.6);
+  scene.add(ambient);
+  var dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(2, 3, 5);
+  scene.add(dirLight);
 
-  uniforms = {
-    uTime:        { value: 0 },
-    uDistort:     { value: 1.0 },
-    uBrightColor: { value: new THREE.Color('#69D2B7') }, // мятный
-    uDarkColor:   { value: new THREE.Color('#0d2230') }, // тёмно-морской
-    uResolution:  { value: new THREE.Vector2(
-      window.innerWidth * dpr, window.innerHeight * dpr
-    )},
+  /* Шар */
+  var seg = isMobile ? 64 : 128;
+  var geo = new THREE.SphereGeometry(1.65, seg, seg);
+
+  var uniforms = {
+    uTime:     { value: 0 },
+    uColorA:   { value: new THREE.Color(0x69D2B7) }, /* мятный */
+    uColorB:   { value: new THREE.Color(0x0d2030) }, /* тёмно-морской */
+    uRimColor: { value: new THREE.Color(0xffffde) }, /* кремовый */
   };
 
-  const mat = new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms });
-  sphere = new THREE.Mesh(geo, mat);
+  var mat = new THREE.ShaderMaterial({
+    vertexShader:   VS,
+    fragmentShader: FS,
+    uniforms:       uniforms,
+  });
+
+  var sphere = new THREE.Mesh(geo, mat);
+  /* на десктопе — вправо; на мобиле — чуть вправо, выше */
+  if (isMobile) {
+    sphere.position.set(0.8, 1.0, 0);
+  } else {
+    sphere.position.set(2.8, 0.4, -0.5);
+  }
   scene.add(sphere);
 
-  clock = new THREE.Clock();
+  var clock = new THREE.Clock();
 
-  // Lenis
-  try {
-    if (typeof Lenis !== 'undefined') {
-      lenis = new Lenis({ lerp: 0.1, smoothWheel: true });
-    }
-  } catch(e) { /* ok */ }
+  /* Mouse parallax */
+  var mouse = { x:0, y:0, tx:0, ty:0 };
+  window.addEventListener('mousemove', function(e) {
+    mouse.tx = (e.clientX/window.innerWidth - 0.5)*2;
+    mouse.ty = -(e.clientY/window.innerHeight - 0.5)*2;
+  });
 
-  // Resize
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
+  /* Resize */
+  window.addEventListener('resize', function() {
+    camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    uniforms.uResolution.value.set(
-      window.innerWidth * dpr, window.innerHeight * dpr
-    );
   });
-}
 
-/* ══════════════════════════════════════════════════
-   MOUSE PARALLAX (только для WebGL-шара)
-══════════════════════════════════════════════════ */
-const mouse = { x: 0, y: 0, tx: 0, ty: 0 };
-window.addEventListener('mousemove', e => {
-  mouse.tx = (e.clientX / window.innerWidth  - 0.5) * 2;
-  mouse.ty = -(e.clientY / window.innerHeight - 0.5) * 2;
-});
+  /* Cursor */
+  var dot  = document.getElementById('cur-dot');
+  var ring = document.getElementById('cur-ring');
+  var cx=0, cy=0, rx=0, ry=0;
+  window.addEventListener('mousemove', function(e){ cx=e.clientX; cy=e.clientY; });
 
-/* ══════════════════════════════════════════════════
-   RENDER LOOP
-══════════════════════════════════════════════════ */
-function animate() {
-  requestAnimationFrame(animate);
-
-  if (renderer && scene && camera) {
-    const t = clock.getElapsedTime();
+  function animate() {
+    requestAnimationFrame(animate);
+    var t = clock.getElapsedTime();
     uniforms.uTime.value = t;
-
-    // медленное вращение
-    sphere.rotation.y += 0.0038;
-    sphere.rotation.x += 0.0010;
-
-    // параллакс к курсору
-    mouse.x += (mouse.tx - mouse.x) * 0.045;
-    mouse.y += (mouse.ty - mouse.y) * 0.045;
-    sphere.position.x = mouse.x * 0.28;
-    sphere.position.y = mouse.y * 0.18;
-
-    if (lenis) lenis.raf(t * 1000);
+    sphere.rotation.y += 0.003;
+    sphere.rotation.x += 0.001;
+    mouse.x += (mouse.tx - mouse.x)*0.04;
+    mouse.y += (mouse.ty - mouse.y)*0.04;
+    sphere.position.x = mouse.x * 0.3;
+    sphere.position.y = mouse.y * 0.2;
     renderer.render(scene, camera);
+    if (dot)  { dot.style.left  = cx+'px'; dot.style.top  = cy+'px'; }
+    if (ring) {
+      rx+=(cx-rx)*0.11; ry+=(cy-ry)*0.11;
+      ring.style.left = rx+'px'; ring.style.top = ry+'px';
+    }
   }
-
-  // cursor (всегда, даже без WebGL)
-  if (dot)  { dot.style.left = cx + 'px'; dot.style.top = cy + 'px'; }
-  if (ring) {
-    rx += (cx - rx) * 0.11; ry += (cy - ry) * 0.11;
-    ring.style.left = rx + 'px'; ring.style.top = ry + 'px';
-  }
-}
-
-/* ══════════════════════════════════════════════════
-   START — вызывается при готовности шрифтов
-══════════════════════════════════════════════════ */
-let _started = false;
-function start() {
-  if (_started) return;
-  _started = true;
-
-  if (!renderer) {
-    // WebGL недоступен
-    startNoWebGL();
-    return;
-  }
-
-  // Запускаем рендер-луп
   animate();
+})();
 
-  // Ждём 2 кадра — шар точно отрендерен
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      ballReady = true;
-      tryReveal();
-    });
-  });
+/* ═══════════════════════════════════════════════
+   LOADER (только если НЕ skiploader)
+═══════════════════════════════════════════════ */
+(function() {
+  if (document.documentElement.getAttribute('data-sl') === '1') return;
 
-  runCounter();
-}
+  var loaderEl  = document.getElementById('loader');
+  var counterEl = document.getElementById('loader-count');
+  var heroEl    = document.getElementById('hero');
 
-// Ждём шрифты (с гарантированным fallback через 600ms)
-if (document.fonts?.ready) {
-  document.fonts.ready.then(start);
-}
-setTimeout(start, 600); // страховка
+  /* счётчик 000→100% за 2.4s */
+  var T = 2400;
+  var t0 = performance.now();
+  (function tick(now) {
+    var p = Math.min((now - t0)/T, 1);
+    var e = p<.5 ? 2*p*p : -1+(4-2*p)*p;
+    counterEl.textContent = String(Math.floor(e*100)).padStart(3,'0')+'%';
+    if (p<1) requestAnimationFrame(tick);
+    else counterEl.textContent='100%';
+  })(performance.now());
 
+  /* ГАРАНТИРОВАННЫЙ уход через 2.6s */
+  setTimeout(function() {
+    if (typeof gsap !== 'undefined') {
+      var W=window.innerWidth, H=window.innerHeight;
+      var sv=(Math.max(W,H,1920)/Math.min(W,H))*22;
+      gsap.timeline()
+        .to(loaderEl, { rotate:180, scale:sv, duration:0.85, ease:'power3.in' })
+        .to(loaderEl, { opacity:0, duration:0.3, ease:'power2.out',
+            onComplete: function(){ loaderEl.style.display='none'; } }, '-=0.15')
+        .to(heroEl,   { opacity:1, duration:0.7, ease:'power2.out' }, '-=0.3');
+    } else {
+      loaderEl.style.display='none';
+      heroEl.style.opacity='1';
+    }
+  }, 2600);
+})();
 </script>
 </body>
 </html>
