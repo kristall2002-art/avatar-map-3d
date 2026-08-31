@@ -344,96 +344,147 @@ html, body {
     useBloom = false;
   }
 
-  /* ── LIGHTS ── */
-  var ambient = new THREE.AmbientLight(0x1a2820, 0.55);
-  scene.add(ambient);
+  /* ── LIGHTS — PBR-совместимое освещение для реализма камня ── */
 
-  var dirLight = new THREE.DirectionalLight(0xb0c8a0, 1.1);
-  dirLight.position.set(5, 12, 4);
+  /* Hemisphere: небо холодное синее, земля тёплая зелёная */
+  var hemiLight = new THREE.HemisphereLight(0x1a2a3a, 0x0a1a0a, 0.45);
+  scene.add(hemiLight);
+
+  /* Солнце под углом — основной источник объёма и теней на normal-map */
+  /* Тёплый желтоватый свет сбоку — даёт чёткие тени в бороздах камня */
+  var dirLight = new THREE.DirectionalLight(0xc8b888, 1.4);
+  dirLight.position.set(6, 14, 5);
   scene.add(dirLight);
 
-  /* Подсветка снизу — тёплый акцент, bloom-совместимый */
-  var pointBottom = new THREE.PointLight(0xaaee44, 5.0, 12, 2);
+  /* Контровой синий свет — отделяет скалу от тумана */
+  var rimLight = new THREE.DirectionalLight(0x4477aa, 0.45);
+  rimLight.position.set(-5, 8, -8);
+  scene.add(rimLight);
+
+  /* Подсветка снизу — тёплый зеленоватый акцент снизу (мхи, туман) */
+  var pointBottom = new THREE.PointLight(0x66bb33, 3.8, 12, 2);
   pointBottom.position.set(0, -3.0, 0);
   scene.add(pointBottom);
 
-  var pointFog = new THREE.PointLight(0x55cc77, 3.0, 22, 2);
+  var pointFog = new THREE.PointLight(0x336644, 2.0, 18, 2);
   pointFog.position.set(-3, -1.5, -4);
   scene.add(pointFog);
 
-  var rimLight = new THREE.DirectionalLight(0xaaffcc, 0.75);
-  rimLight.position.set(-3, 4, -7);
-  scene.add(rimLight);
-
-  var pillarSpot = new THREE.PointLight(0xd8edc8, 3.0, 22, 2);
+  /* Spot следует за камерой — тёплое пятно на скале */
+  var pillarSpot = new THREE.PointLight(0xc0d8a8, 2.8, 22, 2);
   pillarSpot.position.set(5, 4, 5);
   scene.add(pillarSpot);
 
-  /* ── ТЕКСТУРА СТОЛБА — img/082.jpg (1280x1893 вертикальная скала) ── */
+  /* ── PBR ТЕКСТУРЫ СТОЛБА — rock_face (Poly Haven CC0) ── */
   var txLoader = new THREE.TextureLoader();
 
-  /* MeshStandardMaterial — получает все lights сцены */
-  /* Цвет без текстуры — тёмная каменная поверхность с зеленоватым отливом */
+  /* Базовый материал — серый камень до загрузки текстур */
   var matPillar = new THREE.MeshStandardMaterial({
-    color: 0x3a4438,
+    color: 0x5a5850,
     roughness: 0.92,
-    metalness: 0.02,
-    emissive: new THREE.Color(0x0a2010),
-    emissiveIntensity: 0.4,
-    envMapIntensity: 0.08,
+    metalness: 0.0,
+    emissive: new THREE.Color(0x060f06),
+    emissiveIntensity: 0.25,
   });
 
-  /* emissive rim снизу — будет подхвачен bloom */
-  var matPillarEmissive = new THREE.Color(0x1a3a08);
+  /* Загружаем 3 PBR-карты асинхронно */
+  var rockDiffLoaded = false, rockNorLoaded = false, rockRoughLoaded = false;
 
-  function applyPillarTexture(texture) {
-    texture.encoding = THREE.sRGBEncoding;
-    /* MirroredRepeatWrapping убирает шов — зеркалит по горизонтали */
-    texture.wrapS = THREE.MirroredRepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    /* repeat.x = 1 с mirrored = один оборот без шва */
-    texture.repeat.set(1.0, 2.8);
-    texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    matPillar.map = texture;
-    matPillar.color = new THREE.Color(0xffffff);
-    matPillar.emissive = matPillarEmissive;
-    matPillar.emissiveIntensity = 0.18;
-    matPillar.needsUpdate = true;
+  function setupTexture(tex, isSRGB, wrapS, wrapT, repX, repY) {
+    if (isSRGB) tex.encoding = THREE.sRGBEncoding;
+    tex.wrapS = wrapS;
+    tex.wrapT = wrapT;
+    tex.repeat.set(repX, repY);
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
+    return tex;
   }
 
-  txLoader.load(
-    'img/082.jpg',
-    function(tex) { applyPillarTexture(tex); },
+  /* Diffuse — sRGB, MirroredRepeatWrapping по X убирает шов */
+  txLoader.load('img/rock/rock_diff.jpg',
+    function(tex) {
+      setupTexture(tex, true, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
+      matPillar.map = tex;
+      /* Слегка затемняем и добавляем зеленоватый оттенок — мокрый камень в ущелье */
+      matPillar.color = new THREE.Color(0.70, 0.75, 0.62);
+      matPillar.emissive = new THREE.Color(0x030804);
+      matPillar.emissiveIntensity = 0.10;
+      matPillar.needsUpdate = true;
+      rockDiffLoaded = true;
+    },
     undefined,
     function() {
-      txLoader.load('img/055.jpg',
-        function(tex) { applyPillarTexture(tex); },
-        undefined,
-        function() {
-          txLoader.load('img/048.jpg',
-            function(tex) { applyPillarTexture(tex); }
-          );
-        }
-      );
+      /* Fallback — cliff_side diffuse */
+      txLoader.load('img/rock/cliff_diff.jpg', function(tex) {
+        setupTexture(tex, true, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
+        matPillar.map = tex;
+        matPillar.color = new THREE.Color(0.70, 0.75, 0.62);
+        matPillar.needsUpdate = true;
+      });
     }
   );
 
-  /* ── ВСПОМОГАТЕЛЬНЫЙ ШУМ ДЛЯ ДЕФОРМАЦИИ ВЕРШИН ── */
+  /* Normal map — LINEAR (не sRGB!), GL-формат — прямой для Three.js */
+  txLoader.load('img/rock/rock_nor.jpg',
+    function(tex) {
+      setupTexture(tex, false, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
+      matPillar.normalMap = tex;
+      matPillar.normalScale = new THREE.Vector2(1.8, 1.8);
+      matPillar.needsUpdate = true;
+      rockNorLoaded = true;
+    },
+    undefined,
+    function() {
+      txLoader.load('img/rock/cliff_nor.jpg', function(tex) {
+        setupTexture(tex, false, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
+        matPillar.normalMap = tex;
+        matPillar.normalScale = new THREE.Vector2(1.6, 1.6);
+        matPillar.needsUpdate = true;
+      });
+    }
+  );
+
+  /* Roughness map — LINEAR */
+  txLoader.load('img/rock/rock_rough.jpg',
+    function(tex) {
+      setupTexture(tex, false, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
+      matPillar.roughnessMap = tex;
+      matPillar.roughness = 1.0;
+      matPillar.needsUpdate = true;
+      rockRoughLoaded = true;
+    },
+    undefined,
+    function() {
+      txLoader.load('img/rock/cliff_rough.jpg', function(tex) {
+        setupTexture(tex, false, THREE.MirroredRepeatWrapping, THREE.RepeatWrapping, 1.0, 3.5);
+        matPillar.roughnessMap = tex;
+        matPillar.roughness = 1.0;
+        matPillar.needsUpdate = true;
+      });
+    }
+  );
+
+  /* ── FBM-ШУМ ДЛЯ VERTEX DISPLACEMENT — скальные борозды и выступы ── */
   function fbmNoise(angle, y, freq1, freq2, freq3) {
-    var n1 = Math.sin(angle * freq1 + y * 1.7) * Math.cos(y * 0.9) * 0.10;
-    var n2 = Math.sin(angle * freq2 + y * 3.3) * 0.048;
-    var n3 = Math.sin(angle * freq3 + y * 6.8) * 0.024;
-    /* Вертикальные борозды скалы */
-    var groove = Math.sin(angle * 9.0) * 0.042
-               + Math.sin(angle * 17.5) * 0.020
-               + Math.sin(angle * 5.3 + 1.1) * 0.028;
-    return n1 + n2 + n3 + groove;
+    /* Крупные выступы как у реальной скалы Чжанцзяцзе */
+    var n1 = Math.sin(angle * freq1 + y * 1.4) * Math.cos(y * 0.8) * 0.16;
+    /* Средний рельеф */
+    var n2 = Math.sin(angle * freq2 + y * 3.1) * Math.cos(angle * 2.3) * 0.072;
+    /* Мелкий рельеф */
+    var n3 = Math.sin(angle * freq3 + y * 7.2) * 0.034;
+    /* Вертикальные борозды — характерны для столбовых скал */
+    var groove = Math.sin(angle * 7.0 + 0.5) * 0.065
+               + Math.sin(angle * 13.5 + 1.0) * 0.032
+               + Math.sin(angle * 5.1 + 2.1) * 0.048
+               + Math.sin(angle * 19.3 + 0.3) * 0.018;
+    /* Крупный "выступ" с одной стороны — неравномерность скалы */
+    var bulge = Math.max(0, Math.sin(angle * 2.0 + 1.0)) * 0.08 * Math.sin(y * 0.4 + 1.0);
+    return n1 + n2 + n3 + groove + bulge;
   }
 
-  /* ── КАМЕННАЯ ГЕОМЕТРИЯ — CylinderGeometry высокого качества ── */
+  /* ── КАМЕННАЯ ГЕОМЕТРИЯ — высокая детализация для PBR ── */
   function makeRockyGeo(topR, botR, height, radSeg, hSeg) {
-    /* radSeg >= 64 для плавного цилиндра без граней */
     var geo = new THREE.CylinderGeometry(topR, botR, height, radSeg, hSeg, false);
     var pos = geo.attributes.position;
     for (var i = 0; i < pos.count; i++) {
@@ -441,7 +492,7 @@ html, body {
       var r = Math.sqrt(px*px + pz*pz);
       if (r < 0.001) continue;
       var angle = Math.atan2(pz, px);
-      var jitter = fbmNoise(angle, py, 3.7, 7.3, 14.1);
+      var jitter = fbmNoise(angle, py, 3.5, 7.1, 15.3);
       var newR = r + jitter;
       pos.setX(i, Math.cos(angle) * newR);
       pos.setZ(i, Math.sin(angle) * newR);
@@ -450,30 +501,42 @@ html, body {
     return geo;
   }
 
-  /* ── ЦЕНТРАЛЬНЫЙ СТОЛБ — группа секций ── */
+  /* ── ЦЕНТРАЛЬНЫЙ СТОЛБ — пучок 3 колонн Чжанцзяцзе ── */
   var pillarGroup = new THREE.Group();
   scene.add(pillarGroup);
 
-  var radSeg = isMobile ? 32 : 64;
-  var hSeg   = isMobile ? 16 : 32;
+  var radSeg = isMobile ? 48 : 96;
+  var hSeg   = isMobile ? 32 : 128;
 
-  /* Основной монолит — высокий, уходит за кадр вверх */
-  var geoMain = makeRockyGeo(0.22, 0.40, 16.0, radSeg, hSeg);
+  /* Главная колонна — высокая, уходит за кадр вверх */
+  var geoMain = makeRockyGeo(0.24, 0.44, 18.0, radSeg, hSeg);
   var meshMain = new THREE.Mesh(geoMain, matPillar);
   meshMain.position.y = 2.5;
   pillarGroup.add(meshMain);
 
-  /* Верхний пик — острый, за кадром */
-  var geoCap = makeRockyGeo(0.04, 0.22, 6.0, radSeg, 8);
+  /* Верхний пик — сужается, уходит за кадр */
+  var geoCap = makeRockyGeo(0.05, 0.24, 7.0, radSeg, 24);
   var meshCap = new THREE.Mesh(geoCap, matPillar);
-  meshCap.position.y = 13.0;
+  meshCap.position.y = 14.5;
   pillarGroup.add(meshCap);
 
-  /* Нижний выступ — уходит в туман */
-  var geoBase = makeRockyGeo(0.50, 0.62, 5.5, radSeg, 6);
+  /* Нижнее основание — уходит в туман */
+  var geoBase = makeRockyGeo(0.54, 0.68, 6.0, Math.floor(radSeg * 0.75), 8);
   var meshBase = new THREE.Mesh(geoBase, matPillar);
-  meshBase.position.y = -6.5;
+  meshBase.position.y = -7.0;
   pillarGroup.add(meshBase);
+
+  /* Спутник 1 — меньшая колонна слева-сзади, как пучок в Чжанцзяцзе */
+  var geoSat1 = makeRockyGeo(0.12, 0.22, 14.0, Math.floor(radSeg * 0.6), Math.floor(hSeg * 0.5));
+  var meshSat1 = new THREE.Mesh(geoSat1, matPillar);
+  meshSat1.position.set(-0.55, 4.0, -0.45);
+  pillarGroup.add(meshSat1);
+
+  /* Спутник 2 — ещё меньше, справа */
+  var geoSat2 = makeRockyGeo(0.08, 0.16, 10.0, Math.floor(radSeg * 0.5), Math.floor(hSeg * 0.35));
+  var meshSat2 = new THREE.Mesh(geoSat2, matPillar);
+  meshSat2.position.set(0.42, 6.0, 0.38);
+  pillarGroup.add(meshSat2);
 
   /* Emissive кольцо у основания — bloom-цель */
   var geoRing = new THREE.TorusGeometry(0.60, 0.018, 8, 80);
